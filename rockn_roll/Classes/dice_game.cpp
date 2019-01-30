@@ -1,9 +1,11 @@
 #include"dice_game.h"
 
-USING_NS_CC; const float kEriasize = 29.2F;
+USING_NS_CC; 
+
+const float kEriasize = 29.2F;
 #define CHECKPOSION(i,j,k,g) (( (touch->getLocation().x <= (fieldtile_[ i ].position_.x + kEriasize)) &&touch->getLocation().x >= (fieldtile_[ j ].position_.x - kEriasize)) &&(touch->getLocation().y <= (fieldtile_[ k ].position_.y + kEriasize)) &&(touch->getLocation().y >= (fieldtile_[ g ].position_.y - kEriasize )))
 #define CHECKSUBPOSION(i,j,k,g) (( (touch->getLocation().x > (fieldtile_[ i ].position_.x + kEriasize)) &&touch->getLocation().x < (fieldtile_[ j ].position_.x - kEriasize)) &&(touch->getLocation().y > (fieldtile_[ k ].position_.y + kEriasize)) &&(touch->getLocation().y < (fieldtile_[ g ].position_.y - kEriasize )))
-
+#define CHECKSETDICEFLAG(i,j,k,g) fieldtile_[(i)].flag_>0&&fieldtile_[j].flag_>0&&fieldtile_[ (k) ].flag_>0&&fieldtile_[ g ].flag_>0
 //シーンの作成
 //ダイスの個数
 const int DiceType =4;
@@ -12,6 +14,7 @@ Vec2 flo;
 struct fieldtile
 {
     Vec2 position_;
+    std::string str;
     int flag_;
 
 };
@@ -38,7 +41,7 @@ bool Dice_game::init()
 {
 
     //更新処理の開始
-    //scheduleUpdate();
+    scheduleUpdate();
     if( !Scene::init() )
     {
         return false;
@@ -81,13 +84,19 @@ bool Dice_game::init()
 
     //1、シングルタッチを取得するイベントパスを取得
     EventListenerTouchOneByOne* listener = EventListenerTouchOneByOne::create();
+    auto key_listener = cocos2d::EventListenerKeyboard::create();
+    key_listener->onKeyPressed = [this]( cocos2d::EventKeyboard::KeyCode keyCode, cocos2d::Event* event )->bool{
+        // 下ボタンを押したらフラグをONにする例
+        if( keyCode == cocos2d::EventKeyboard::KeyCode::KEY_Z ){
 
+        }
+        return true;
+    };
     //イベントが発生した時に処理を行う関数を実装
     //ontouchbeganの実装
     listener->onTouchBegan = [&]( Touch* touch, Event* event )->bool{
         
         //初期化
-        scheduleUpdate();
         Sprite* Roll = Sprite::create( "roll.png" );
         Roll->setPosition( 440.0F, 540.0F );
         Roll->setScale( 0.6F );
@@ -108,17 +117,32 @@ bool Dice_game::init()
             }
         }
         //ここまで
-
-        //振ったダイスを生成
+       
+        //ROLLボタンを押したときの処理
         if( ((touch->getLocation().x <= 83.0F&&touch->getLocation().x >= 16.0F) && (touch->getLocation().y <= 504.0F&&touch->getLocation().y >= 448.0F)) )
         {
-            if( check_BordSetDice_flag.all()&&check_SetDiceChange_flag.all() )
+            //変更していないダイスがある場合の処理
+            if( check_BordSetDice_flag.any() )
             {
                 for( int i = 0; i < DiceType; i++ ){
-                    check_SetDiceChange_flag.reset(i);
-                    check_BordSetDice_flag.reset(i);
+                    if( (check_BordSetDice_flag.test( i ) == true) && (check_SetDiceChange_flag.test( i ) == false) )
+                    {
+                        L_Dice.at( i )->setSpriteFrame( Sprite::create( kF_DiceName.at( four_dice_.at( i ) ) )->getSpriteFrame() );
+                        count++;
+                        check_SetDiceChange_flag.set( i );
+                    }
                 }
             }
+            // フラグリセット
+            if( check_BordSetDice_flag.all() && check_SetDiceChange_flag.all() )
+            {
+                for( int i = 0; i < DiceType; i++ ){
+                    check_SetDiceChange_flag.reset( i );
+                    check_BordSetDice_flag.reset( i );
+                    check_RePushPrevention_flag.reset( 0 );
+                }
+            }
+            //すべてのフラグがない　空でかつ変更が済んでいる場合の処理
             if( check_BordSetDice_flag.none() && check_RePushPrevention_flag.none() )
             {
                 for( int i = 0; i < DiceType; i++ ){
@@ -126,26 +150,29 @@ bool Dice_game::init()
                     L_Dice.at( i ) = Sprite::create( kN_F_DiceName.at( four_dice_.at( i ) ) );
                     L_Dice.at( i )->setScale( 1.2F, 1.2F );
                     L_Dice.at( i )->setPosition( 50.0F, (397.0F - (60 * i)) );
-                    L_Dice.at( i )->setTag( four_dice_.at( i ) );
+
                 }
             }
-            
-            for( int i = 0; i < DiceType; i++ ){
-                if( (check_BordSetDice_flag.test( i ) == true) && (check_SetDiceChange_flag.test( i ) == false) )
-                {
-                    L_Dice.at( i )->setSpriteFrame( Sprite::create( kF_DiceName.at( four_dice_.at( i ) ) )->getSpriteFrame() );
-                    check_SetDiceChange_flag.set( i );
-                }
-            }
+
+            //生成したデータを表示
             if( check_BordSetDice_flag.none() && check_RePushPrevention_flag.none() )
             {
                 for( int i = 0; i < DiceType; i++ ){
                     check_RePushPrevention_flag.set( 0 );
                     this->addChild( L_Dice.at( i ) );
-                    count++;
                 }
-
             }
+            for( int i = 0; i < DiceType; i++ )
+            {
+                RemoveAction( i, (i + 4), (i + 8), (i + 12) ,0);
+                RemoveAction( (i * 4), (i * 4) + 1, (i * 4) + 2, (i * 4) + 3 ,0);
+            }
+
+            //斜め]
+            RemoveAction( 3, 6, 9, 12 ,0);
+            RemoveAction( 0, 5, 10, 15 ,0);
+            RemoveAction( 0, 3, 12, 15 ,0);
+            RemoveAction( 0, 0, 0, 0, 1 );
         }
         else
         {
@@ -159,7 +186,10 @@ bool Dice_game::init()
 
                         if( touch->getLocation().y <= (L_Dice.at( i )->getPosition().y + 25)
                             && touch->getLocation().y >= (L_Dice.at( i )->getPosition().y - 25) ){
-                            check_HoldDice_flag.set( i );
+                            if( check_SetDiceChange_flag.test( i ) == false )
+                            {
+                                check_HoldDice_flag.set( i );
+                            }
                         }
                     }
                 }
@@ -167,7 +197,7 @@ bool Dice_game::init()
                 for( int j = 0; j < ((DiceType*DiceType)); j++ ){
 
                     if( CHECKPOSION( j, j, j, j ) ){
-                        fieldtile_[ j ].flag_ = false;
+                        fieldtile_[ j ].flag_ = 0;
                     }
                 }
             }
@@ -205,23 +235,43 @@ bool Dice_game::init()
     listener->onTouchEnded = [&]( Touch* touch, Event* event )->bool{
 
         //入力が終わった時に一番近い区画の位置にダイスを置く処理
-        
+
+        bool flag = false;
         for( int i = 0; i < (DiceType*DiceType); i++ )
         {
             if( CHECKPOSION( i, i, i, i ))
             {
+                flag = true;
                 for( int j = 0; j < L_Dice.size(); j++ )
                 {
                     if( L_Dice.at( j ) != NULL )
                     {
                         if( check_HoldDice_flag.test( j ) )
                         {
-                            if(fieldtile_[i].flag_==false )
+                            if( fieldtile_[ i ].flag_ == 0 )
                             {
                                 L_Dice.at( j )->setPosition( fieldtile_[ i ].position_ );
-                                fieldtile_[ i ].flag_ = true;
+                                L_Dice.at( j )->setTag( i );
+                                fieldtile_[ i ].flag_ = four_dice_.at( j );
                                 check_BordSetDice_flag.set( j );
                                 check_HoldDice_flag.reset( j );
+                                if( fieldtile_[ i ].flag_ >=1 && fieldtile_[ i ].flag_ <= 4 )
+                                {
+                                    fieldtile_[ i ].str = "b" + std::to_string( (fieldtile_[ i ].flag_) % 4 );
+                                }
+                                if( fieldtile_[ i ].flag_ >= 5 && fieldtile_[ i ].flag_ <= 8 )
+                                {
+                                    fieldtile_[ i ].str = "g" + std::to_string( (fieldtile_[ i ].flag_) % 4 );
+                                }
+                                if( fieldtile_[ i ].flag_ >= 9 && fieldtile_[ i ].flag_ <= 12 )
+                                {
+                                    fieldtile_[ i ].str = "r" + std::to_string( (fieldtile_[ i ].flag_) % 4 );
+                                }
+                                if( fieldtile_[ i ].flag_ >= 13 && fieldtile_[ i ].flag_ <= 16 )
+                                {
+                                    fieldtile_[ i ].str = "y" + std::to_string( (fieldtile_[ i ].flag_) % 4 );
+                                }
+
                             }
                             else
                             {
@@ -239,29 +289,23 @@ bool Dice_game::init()
                 }
             }    
         }
+        if( flag == false )
+        {
+            for( int j = 0; j < L_Dice.size(); j++ ){
 
-        for( int i = 0; i < (DiceType*DiceType); i++ )
-        {
-        if( CHECKSUBPOSION( i, i, i, i ) )
-        {
-                if( !CHECKPOSION( i, i, i, i ) )
+                if( L_Dice.at( j ) != NULL )
                 {
-                    for( int j = 0; j < L_Dice.size(); j++ ){
-
-                        if( L_Dice.at( j ) != NULL )
+                    if( check_HoldDice_flag.test( j ) )
+                    {
+                        for( int k = 0; k < DiceType; k++ )
                         {
-                            if( check_HoldDice_flag.test( j ) )
+                            if( check_HoldDice_flag.test( k ) )
                             {
-                                for( int k = 0; k < DiceType; k++ )
-                                {
-                                    if( check_HoldDice_flag.test( k ) )
-                                    {
-                                        L_Dice.at( j )->setPosition( 50.0F, (400.0F - (60 * k)) );
-                                    }
-                                }
-
+                                L_Dice.at( j )->setPosition( 50.0F, (400.0F - (60 * k)) );
+                                check_HoldDice_flag.reset( j );
                             }
                         }
+
                     }
                 }
             }
@@ -269,6 +313,7 @@ bool Dice_game::init()
 
         return true;
     };
+
     Sprite* Roll2 = Sprite::create( "roll.png" );
     Roll2->setPosition( 440.0F, 540.0F );
     Roll2->setScale( 0.6F );
@@ -287,13 +332,101 @@ bool Dice_game::init()
 
     return true;
 }
+int Dice_game::RemoveAction( int value1, int value2, int value3, int value4, int chenged )
+{
+    switch( chenged )
+    {
+        case 0:
+        {
+            if( CHECKSETDICEFLAG( value1, value2, value3, value4 ) )
+            {
+                if( 1 == Checkscoreing( fieldtile_[ value1 ].str, fieldtile_[ value2 ].str, fieldtile_[ value3 ].str, fieldtile_[ value4 ].str, 0 ) )
+                {
+                    ResetArray( value1, value2, value3, value4 );
+
+                    return 1;
+                }
+                else if( 2 == Checkscoreing( fieldtile_[ value1 ].str, fieldtile_[ value2 ].str, fieldtile_[ value3 ].str, fieldtile_[ value4 ].str, 1 ) )
+                {
+                    ResetArray( value1, value2, value3, value4 );
+                    return 1;
+                }
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        case 1:
+        {
+            for( int i = 0; i < DiceType*DiceType; i++ )
+            {
+                if( fieldtile_[ i ].flag_ == -1 )
+                {
+                    this->removeChildByTag( i );
+                    fieldtile_[ i ].flag_ = 0;
+                }
+            }
+        }
+
+    }
+    return 0;
+}
+int Dice_game::Checkscoreing( std::string value1, std::string value2, std::string value3, std::string value4, int EorN )
+{
+    switch( EorN )
+    {
+        case 0:{
+            if( value1 == value2 && value1 == value3 && value1 == value4 )
+            {
+                if( value2 == value1 && value2 == value3 && value2 == value4 )
+                {
+                    if( value3 == value1 && value3 == value2 && value3 == value4 )
+                    {
+                        if( value4 == value1 && value4 == value2 && value4 == value3 )
+                        {
+                            return 1;
+                        }
+                    }
+                }
+            }
+
+        }; break;
+        case 1:{
+            if( value1 != value2 && value1 != value3 && value1 != value4 )
+            {
+                if( value2 != value1 && value2 != value3 && value2 != value4 )
+                {
+                    if( value3 != value1 && value3 != value2 && value3 != value4 )
+                    {
+                        if( value4 != value1 && value4 != value2 && value4 != value3 )
+                        {
+                            return 2;
+                        }
+                    }
+                }
+            }
+
+        }; break;
+    }
+
+
+    return 0;
+}
+bool Dice_game::ResetArray( int value1, int value2, int value3, int value4 )
+{
+    fieldtile_[ value1 ].flag_ = -1;
+    fieldtile_[ value2 ].flag_ = -1;
+    fieldtile_[ value3 ].flag_ = -1;
+    fieldtile_[ value4 ].flag_ = -1;
+    fieldtile_[ value1 ].str = "";
+    fieldtile_[ value2 ].str = "";
+    fieldtile_[ value3 ].str = "";
+    fieldtile_[ value4 ].str = "";
+    return true;
+
+}
 void Dice_game::update( float dt )
 {
-    
-    flo += Vec2( 1.0F,1.0F );
-   /* ret++;
-    Sprite* sprite = Sprite::create( "ghw.PNG" );
-    sprite->setPosition( ret / 255, 100 );
-    this->addChild( sprite );*/
 
 };

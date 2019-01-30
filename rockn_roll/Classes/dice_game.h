@@ -19,6 +19,10 @@ public:
     virtual bool init();                    //‰Šú‰»
     void update( float dt );
     float ret;
+    int RemoveAction( int value1, int value2, int value3, int value4 ,int chenged);
+    bool ResetArray( int value1, int value2, int value3, int value4 );
+    int Checkscoreing( std::string value1, std::string value2, std::string value3, std::string value4,int EorN );
+
     CREATE_FUNC( Dice_game );               //cresteŠÖ”‚ÌÀ‘•ƒ}ƒNƒ
     std::bitset<4> check_BordSetDice_flag;
     std::bitset<1> check_RePushPrevention_flag;
@@ -30,8 +34,6 @@ public:
     int count = NULL;
     
 private:
-
-
-};
+    };
 
 #endif // !__DICE_GAME_SCENE_H__
